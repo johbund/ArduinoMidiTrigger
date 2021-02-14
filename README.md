@@ -11,4 +11,5 @@ The project consists of two arduino sketches.
 ## Circuit Schematic
 
 A diagram of the circuit can be found here:
-![Circuit Schematic](/schematic.png)
+![Circuit Schematic](/figures/schematic.pdf)
+![Circuit Schematic](/figures/schematic.png)
