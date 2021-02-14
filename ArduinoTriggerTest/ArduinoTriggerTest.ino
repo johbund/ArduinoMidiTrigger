@@ -67,6 +67,8 @@ bool noteReady;             // indicates that next note can be triggered
 
 unsigned long lasttime;     // save time of last note trigger
 
+unsigned int maxValue;      // check maximum sensor values
+
 
 // ####################################################################### setup
 void setup() {
@@ -80,6 +82,7 @@ void setup() {
   currValue = 0.0;
   prevValue = 0.0;
   lasttime = 0;
+  maxValue = 0;
   noteReady = false;
   
   Serial.begin(SERIAL_BAUD);
@@ -88,11 +91,17 @@ void setup() {
 
 // ######################################################################## loop
 void loop() {
-  int i;
+  int i, sensorValue;
   char output[32];
 
+  sensorValue = analogRead(SENSOR_PIN);             // read sensor
+  sensorValues[writePos] = sensorValue;
   writePos = (writePos + 1) % AVERAGE;              // advance write position
-  sensorValues[writePos] = analogRead(SENSOR_PIN);  // read sensor
+
+  if (maxValue < sensorValue) 
+    maxValue = sensorValue;
+  sprintf(output, "  sensor: %d, maximum: %d", sensorValue, maxValue);
+  Serial.println(output);
 
   unsigned int sum = 0;                             // compute average
   for (i = 0; i < AVERAGE; i++) {
@@ -151,7 +160,7 @@ void noteOn(int pitch, int velocity) {
   sprintf(output, "MIDI note %x on, velocity: %d", pitch, velocity);
   Serial.println(output);
 
-/*  // change baud rate when sending Midi signals
+/*  // remove other serial oputput and change baud rate when sending Midi signals
   int cmd = MIDI_NOTE_ON + MIDI_CHANNEL - 1;
   Serial.write(cmd);
   Serial.write(pitch);
@@ -164,7 +173,7 @@ void noteOff(int pitch) {
   sprintf(output, "MIDI note %x off", pitch);
   Serial.println(output);
   
-/*  // change baud rate when sending Midi signals
+/*  // remove other serial oputput and change baud rate when sending Midi signals
   int cmd = MIDI_NOTE_OFF + MIDI_CHANNEL - 1;
   int velocity = 0x00;
   Serial.write(cmd);
