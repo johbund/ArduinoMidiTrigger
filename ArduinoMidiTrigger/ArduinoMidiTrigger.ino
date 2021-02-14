@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#define SENSORS 4
-#define AVERAGE 5
 
+// ############################################################## midi constants
 #define MIDI_NOTE_ON    0x90
 #define MIDI_NOTE_OFF   0x80
 
@@ -45,95 +44,109 @@
 #define DB_TAMB         0x33
 #define DB_ZAP          0x34
 
+
+// ########################################################### project constants
+#define SENSORS 4   // number of trigger pads
+#define AVERAGE 5   // number of last measurements to average over
+
 // analog input pins
 const int sensorpins[SENSORS] = {A0, A1, A2, A3};
 
-const int thresholds[SENSORS] = {25, 25, 25, 25};
+// threshold for sensor readings
+const int thresholds[SENSORS] = {25, 100, 100, 80};
 
-const int clip_values[SENSORS] = {800, 800, 800, 800};
+// clip sensor value at corresponding value
+const int clipValues[SENSORS] = {800, 800, 800, 800};
 
+// time until next note can be fired (in millis)
 const int cooldowns[SENSORS] = {50, 50, 50, 50};
 
-const int notes[SENSORS] = {DB_CLHAT, DB_OPHAT, DB_CLAP, DB_KICK1};
+// pad assignment
+const int notes[SENSORS] = {DB_CLHAT, DB_OPHAT, DB_CLAP, DB_KICK2};
 
 
-int sensorValues[SENSORS][AVERAGE];
-int avgValues[SENSORS];
-int avgValues_prev[SENSORS];
-int avgValues_prev_prev[SENSORS];
-unsigned long last_triggered[SENSORS];
-bool note_ready[SENSORS];
+// ################################################################### variables
+int sensorValues[SENSORS][AVERAGE];   // array of last sensor measurements
+unsigned int writePos;                // write position sensor measurement
 
-int sens, i;
+float currValues[SENSORS];            // current sensor measurument
+float prevValues[SENSORS];            // previous sensor measurument
 
+bool noteReady[SENSORS];              // next note can be triggered
+
+unsigned long lasttime[SENSORS];      // save time of last note trigger
+
+
+// ####################################################################### setup
 void setup() {
-  Serial.begin(MIDI_BAUD);
+  int sens, i;
 
+  // initialize variables
   for (sens = 0; sens < SENSORS; sens++) {
     for (i = 0; i < AVERAGE; i++)
       sensorValues[sens][i] = 0;
-    avgValues[sens] = 0;
-    avgValues_prev[sens] = 0;
-    avgValues_prev_prev[sens] = 0;
-    last_triggered[sens] = 0;
-    note_ready[sens] = false;
+    writePos = 0;
+    currValues[sens] = 0.0;
+    prevValues[sens] = 0.0;
+    lasttime[sens] = 0;
+    noteReady[sens] = false;
   }
+  
+  Serial.begin(MIDI_BAUD);
 }
 
-void loop() {
 
-  // shift the previous values by one
-  // TODO: ring buffer
+// ######################################################################## loop
+void loop() {
+  int sens, i;
+
+  // read all sensors and write to array
   for (sens = 0; sens < SENSORS; sens++) {
-    for (i = AVERAGE - 1; i > 0; i--) {
-      sensorValues[sens][i] = sensorValues[sens][i-1];
-    }
-    sensorValues[sens][0] = analogRead(sensorpins[sens]);
+    sensorValues[sens][writePos] = analogRead(sensorpins[sens]);
   }
+  writePos = (writePos + 1) % AVERAGE; 
 
   // compute the average of the measurements
   float sums[SENSORS];
   for (sens = 0; sens < SENSORS; sens++) {
-    avgValues_prev_prev[sens] = avgValues_prev[sens];
-    avgValues_prev[sens]  = avgValues[sens];
-    
     sums[sens] = 0;
     for (i = 0; i < AVERAGE; i++) {
       sums[sens] += sensorValues[sens][i];
     }
-    avgValues[sens] = sums[sens] / AVERAGE;
+    currValues[sens] = sums[sens] / (float) AVERAGE;
   }
 
+  // fire Midi note on peak
   for (sens = 0; sens < SENSORS; sens++) {
-    if (avgValues[sens] > thresholds[sens]) {
+    if (currValues[sens] > thresholds[sens]) {
+      if (currValues[sens] >= prevValues[sens]) {
+        noteReady[sens] = true;
+      } else {
+        if (noteReady[sens]) {
+          if (lasttime[sens] + cooldowns[sens] < millis()) { 
+            noteOn(notes[sens], velocityMap(prevValues[sens], sens)); //note_on
+            noteOff(notes[sens]);                                     //note_off
 
-      //on rising values wait for peak
-      if (avgValues[sens] >= avgValues_prev[sens]) {
-        note_ready[sens] = true;
-      }
-
-      if (avgValues_prev[sens] < avgValues_prev_prev[sens] && 
-                              avgValues[sens] < avgValues_prev[sens]) {
-        if (note_ready[sens]) {
-          if (last_triggered[sens] + cooldowns[sens] < millis()) { 
-            noteOn(notes[sens], velocityMap(avgValues_prev_prev[sens], sens)); //note_on
-            noteOff(notes[sens], 0x00); //note_off
-
-            last_triggered[sens] = millis();
-            note_ready[sens] = false;
+            lasttime[sens] = millis();
+            noteReady[sens] = false;
           }
         }
       }
+      prevValues[sens] = currValues[sens];
     }
   }
 }
 
-int velocityMap(int value, int sens) {
-  if (value > clip_values[sens]) {
+
+// ####################################################### function declarations
+
+// map sensor value on range 0 to clipValue
+int velocityMap(float value, int sens) {
+  if (value >= clipValues[sens]) {
     return 127;
   }
-  float percent = (float) value / (float) clip_values[sens];
-  return (int) (percent * 127); 
+  float percent = value / (float) clipValues[sens];
+  return (int) (percent * 127 + 0.5); 
 }
 
 void noteOn(int pitch, int velocity) {
@@ -143,8 +156,9 @@ void noteOn(int pitch, int velocity) {
   Serial.write(velocity);
 }
 
-void noteOff(int pitch, int velocity) {
+void noteOff(int pitch) {
   int cmd = MIDI_NOTE_OFF + MIDI_CHANNEL - 1;
+  int velocity = 0x00;
   Serial.write(cmd);
   Serial.write(pitch);
   Serial.write(velocity);

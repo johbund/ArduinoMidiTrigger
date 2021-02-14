@@ -108,13 +108,15 @@ void loop() {
     sum += sensorValues[i];
   }
   currValue = sum / (float) AVERAGE;
-  
+
+  // filter measurements below threshold
   if (currValue > THRESHOLD) {
     
     sprintf(output, "  sensor: %d, average: %d.%02d", sensorValues[writePos], 
                              (int)currValue, (unsigned int)(currValue*100)%100);
     Serial.println(output);
-    
+
+    // fire only on peak after rising values
     if (currValue >= prevValue) {
       noteReady = true;
     } else {
@@ -130,7 +132,7 @@ void loop() {
       }
     }
 
-  prevValue = currValue;
+    prevValue = currValue;
   }
 }
 
@@ -155,6 +157,7 @@ int velocityMap(float value) {
   return result;
 }
 
+// send Midi note on command
 void noteOn(int pitch, int velocity) {
   char output[32];
   sprintf(output, "MIDI note %x on, velocity: %d", pitch, velocity);
@@ -168,6 +171,7 @@ void noteOn(int pitch, int velocity) {
 */
 }
 
+// send Midi note off command
 void noteOff(int pitch) {
   char output[32];
   sprintf(output, "MIDI note %x off", pitch);
