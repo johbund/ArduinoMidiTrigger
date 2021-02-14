@@ -1,15 +1,14 @@
 # ArduinoMidiTrigger
-Sends midi events when piezo elements sense a hit.
+*by Johannes Bund*
 
- - Author: Johannes Bund
+Code and schematic of a selfmade drum trigger pad. The pad is used to control an Arturia DrumBrute.
+The project consists of two arduino sketches.
+ 
+ - **ArduinoTriggerTest**: A sketch that can be used to test a single trigger pad. Includes various outputs to a serial monitor.
+ - **ArduinoMidiTrigger**: The main sketch. Scan the sensors and send Midi events accordingly.
 
-ArduinoTriggerTest
 
-ArduinoMidiTrigger
+## Circuit Schematic
 
-
-## Schematic
-
-![Circuit Schematic](schematic.pdf)
-
-## Code
+A diagram of the circuit can be found here:
+![Circuit Schematic](/schematic.pdf)
