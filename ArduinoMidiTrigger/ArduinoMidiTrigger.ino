@@ -17,15 +17,44 @@
 #define SENSORS 4
 #define AVERAGE 5
 
-int sensorpins[SENSORS] = {A0, A1, A2, A3};
+#define MIDI_NOTE_ON    0x90
+#define MIDI_NOTE_OFF   0x80
 
-int thresholds[SENSORS] = {25, 25, 25, 25};
+#define MIDI_BAUD       31250
+#define SERIAL_BAUD     9600
 
-int clip_values[SENSORS] = {800, 800, 800, 800};
+// Midi channel (Arturia DrumBrute)
+#define MIDI_CHANNEL    10
 
-int cooldowns[SENSORS] = {50, 50, 50, 50};
+// Arturia DrumBrute Midi map
+#define DB_KICK1        0x24
+#define DB_KICK2        0x25
+#define DB_SNARE        0x26
+#define DB_CLAP         0x27
+#define DB_RIM          0x28
+#define DB_CLAVES       0x29
+#define DB_CLHAT        0x2a
+#define DB_OPHAT        0x2b
+#define DB_CONGAH       0x2c
+#define DB_TOMH         0x2d
+#define DB_CONGAL       0x2e
+#define DB_TOML         0x2f
+#define DB_CYMBAL       0x30
+#define DB_REVCYMBAL    0x31
+#define DB_MARACAS      0x32
+#define DB_TAMB         0x33
+#define DB_ZAP          0x34
 
-int notes[SENSORS] = {0x25, 0x26, 0x27, 0x28};
+// analog input pins
+const int sensorpins[SENSORS] = {A0, A1, A2, A3};
+
+const int thresholds[SENSORS] = {25, 25, 25, 25};
+
+const int clip_values[SENSORS] = {800, 800, 800, 800};
+
+const int cooldowns[SENSORS] = {50, 50, 50, 50};
+
+const int notes[SENSORS] = {DB_CLHAT, DB_OPHAT, DB_CLAP, DB_KICK1};
 
 
 int sensorValues[SENSORS][AVERAGE];
@@ -38,7 +67,7 @@ bool note_ready[SENSORS];
 int sens, i;
 
 void setup() {
-  Serial.begin(31250);
+  Serial.begin(MIDI_BAUD);
 
   for (sens = 0; sens < SENSORS; sens++) {
     for (i = 0; i < AVERAGE; i++)
@@ -87,8 +116,8 @@ void loop() {
                               avgValues[sens] < avgValues_prev[sens]) {
         if (note_ready[sens]) {
           if (last_triggered[sens] + cooldowns[sens] < millis()) { 
-            noteOn(0x99, notes[sens], velocityMap(avgValues_prev_prev[sens], sens)); //note_on
-            noteOn(0x89, notes[sens], 0x00); //note_off
+            noteOn(notes[sens], velocityMap(avgValues_prev_prev[sens], sens)); //note_on
+            noteOff(notes[sens], 0x00); //note_off
 
             last_triggered[sens] = millis();
             note_ready[sens] = false;
@@ -107,9 +136,16 @@ int velocityMap(int value, int sens) {
   return (int) (percent * 127); 
 }
 
-void noteOn(int cmd, int pitch, int velocity) {
+void noteOn(int pitch, int velocity) {
+  int cmd = MIDI_NOTE_ON + MIDI_CHANNEL - 1;
   Serial.write(cmd);
   Serial.write(pitch);
   Serial.write(velocity);
-//  Serial.print("Midi");
+}
+
+void noteOff(int pitch, int velocity) {
+  int cmd = MIDI_NOTE_OFF + MIDI_CHANNEL - 1;
+  Serial.write(cmd);
+  Serial.write(pitch);
+  Serial.write(velocity);
 }
