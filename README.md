@@ -1,2 +1,15 @@
 # ArduinoMidiTrigger
-Sends out Midi notes, when a piezo element senses a hit.
+Sends midi events when piezo elements sense a hit.
+
+ - Author: Johannes Bund
+
+ArduinoTriggerTest
+
+ArduinoMidiTrigger
+
+
+## Schematic
+
+![Circuit Schematic](schematic.pdf)
+
+## Code

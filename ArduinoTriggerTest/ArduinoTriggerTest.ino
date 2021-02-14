@@ -139,7 +139,7 @@ void loop() {
 
 // ####################################################### function declarations
 
-// map sensor value to range 0 to MAX_VALUE
+// map sensor value on range 0 to MAX_VALUE
 int velocityMap(float value) {
   char output[32];
   int result;
